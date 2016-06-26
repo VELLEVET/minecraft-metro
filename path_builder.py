@@ -8,359 +8,354 @@ import logging as log
 import networkx as nx
 import sys
 
-from data.Station import Station
-from data.Cross import Cross
-from data.Address import Address
-from command_generator import generate_commands
+
+def process_connected_stations(cross, stations, directions, lengths):
+    for direction, value in cross['connections'].items():
+        if value['type'] == 's':
+            address = stations[value['number']]['address']
+            directions[direction] += [address]
+            lengths[direction]['-'.join(str(x) for x in address)] = 1
+
+    return directions, lengths
 
 
-def print_list(list_to_print):
-    result = "["
+def generate_way_command(address):
+    template = '/execute @e[x={x},y={y},z={z},r={r},{scores}] ~ ~ ~ setblock {rx} {ry} {rz} minecraft:rail {rd}'
 
-    items = []
+    scores = []
+    score_prefix = 'score_'
+    score_name = 'metro_st_l_{l}'
+    score_min_suffix = '_min'
 
-    for value in list_to_print:
-        if isinstance(value, dict):
-            items += [print_dict(value)]
-        elif isinstance(value, list):
-            items += [print_list(value)]
+    for i in range(0, len(address)):
+        l = address[i]
+
+        if l < 10:
+            score = score_prefix + score_name + score_min_suffix
+            score = score.replace('{l}', str(i))
+            score += '=' + str(l)
+            scores += [score]
+
+            score = score_prefix + score_name
+            score = score.replace('{l}', str(i))
+            score += '=' + str(l)
+            scores += [score]
         else:
-            items += [str(value)]
+            div, mod = divmod(l, 10)
+            score = score_prefix + score_name + score_min_suffix
+            score = score.replace('{l}', str(i))
+            score += '=' + str(div - 1)
+            scores += [score]
 
-    result += ", ".join(items)
-    result += "]"
-    return result
+            score = score_prefix + score_name
+            score = score.replace('{l}', str(i))
+            score += '=' + str(mod)
+            scores += [score]
 
-
-def print_dict(dictionary):
-    result = "{"
-    items = []
-
-    for key, value in dictionary.items():
-        item = "\'" + str(key) + "\': "
-        if isinstance(value, dict):
-            item += print_dict(value)
-        elif isinstance(value, list):
-            item += print_list(value)
-        else:
-            item += str(value)
-        items += [item]
-
-    result += ", ".join(items)
-    result += "}"
-    return result
+    template = template.replace('{scores}', ','.join(scores))
+    return template
 
 
-def process_connected_stations(cross, stations):
+def process_cross(cross, paths, crosses, stations):
+    log.info('Processing cross %s', cross['number'])
+
     directions = dict()
+    directions['n'] = []
+    directions['s'] = []
+    directions['w'] = []
+    directions['e'] = []
+
     lengths = dict()
+    lengths['n'] = dict()
+    lengths['s'] = dict()
+    lengths['e'] = dict()
+    lengths['w'] = dict()
+
+    directions, lengths = process_connected_stations(cross, stations, directions, lengths)
+
     connected_stations = []
+    for direction, value in cross['connections'].items():
+        if value['type'] == 's':
+            connected_stations += [value['number']]
 
-    def process_direction(d, obj):
-        if obj is None or obj[0] != "s":
-            return
+    connected_crosses_directions = dict()
+    for direction, value in cross['connections'].items():
+        if value['type'] == 'c':
+            connected_crosses_directions[value['number']] = direction
 
-        if d not in directions:
-            directions[d] = []
-        directions[d] += [obj]
+    log.debug('Connected stations: %s', connected_stations)
 
-        if d not in lengths:
-            lengths[d] = dict()
-        lengths[d][obj] = 1
+    # Walk through entire address array
+    level_stack = []
+    for i in range(0, len(cross['address'])):
+        l = cross['address'][i]
+        level_stack.append(l)
 
-        connected_stations.append(obj)
-
-    direction = cross.get_n()
-    process_direction('n', direction)
-    direction = cross.get_s()
-    process_direction('s', direction)
-    direction = cross.get_w()
-    process_direction('w', direction)
-    direction = cross.get_e()
-    process_direction('e', direction)
-
-    return directions, lengths, connected_stations
-
-
-def process_distant_stations(cross, shortest_paths, stations, connected_stations, connected_crosses_directions):
-    directions = dict()
-    directions['n'] = []
-    directions['s'] = []
-    directions['w'] = []
-    directions['e'] = []
-
-    lengths = dict()
-    lengths['n'] = dict()
-    lengths['s'] = dict()
-    lengths['w'] = dict()
-    lengths['e'] = dict()
-
-    for i in range(0, cross.get_address().get_depth()):
-        l = cross.get_address().at(i)
-        stack = cross.get_address().get_to_depth(i)
-
-        for q in range(0, 4):
-            if q == l:
+        # Process quads on this depth level except one where current station is located at
+        for quad in range(0, 4):
+            if quad == l:
                 continue
-            quad_addr = Address(stack)
-            quad_addr.push_level(q)
 
-            quad_stations_str_ids = [str_id for str_id, s in stations.items()
-                                     if quad_addr.partial_compare(s.get_address()) and
-                                     str_id not in connected_stations]
+            current_address = level_stack[:-1] + [quad]
 
-            if len(quad_stations_str_ids) > 0:
-                shortest_path = None
-                for station in quad_stations_str_ids:
-                    path = shortest_paths[cross.get_str_id()][station]
-                    if shortest_path is None or len(path) < len(shortest_path):
+            # Process crosses in this quad
+            quad_crosses = [k for k, v in crosses.items() if v['address'][:i+1] == current_address]
+            if len(quad_crosses) > 0:
+                # log.debug('Crosses at %s: %s', current_address, quad_crosses)
+
+                # Get path from current cross to each other in this quad
+                shortest_path = 0
+                for c in quad_crosses:
+                    path = paths[cross['name']]['c' + str(c)]
+                    if shortest_path == 0 or len(path) < len(shortest_path):
                         shortest_path = path
+                # log.debug('Shortest path to %s is %s', current_address, shortest_path)
 
-                direction = connected_crosses_directions[shortest_path[1]]
-                if quad_addr not in directions[direction]:
-                    directions[direction] += [quad_addr]
-                    lengths[direction]['-'.join(str(x) for x in quad_addr)] = len(shortest_path)
+                if shortest_path != 0:
+                    # Add current address to necessary direction
+                    direction = connected_crosses_directions[int(shortest_path[1][1:])]
+                    # log.debug('Direction for address %s: %s', current_address, direction)
 
-    return directions, lengths
+                    if current_address not in directions[direction]:
+                        directions[direction] += [current_address]
+                        lengths[direction]['-'.join(str(x) for x in current_address)] = len(shortest_path)
 
+            # Process stations in this quad
+            quad_stations = [k for k, v in stations.items() if v['address'][:i+1] == current_address and
+                             v['number'] not in connected_stations]
+            if len(quad_stations) > 0:
+                # log.debug('Stations at %s: %s', current_address, quad_stations)
 
-def process_distant_crosses(cross, shortest_paths, crosses, connected_crosses_directions):
-    directions = dict()
-    directions['n'] = []
-    directions['s'] = []
-    directions['w'] = []
-    directions['e'] = []
-
-    lengths = dict()
-    lengths['n'] = dict()
-    lengths['s'] = dict()
-    lengths['w'] = dict()
-    lengths['e'] = dict()
-
-    for i in range(0, cross.get_address().get_depth()):
-        l = cross.get_address().at(i)
-        stack = cross.get_address().get_to_depth(i)
-
-        for q in range(0, 4):
-            if q == l:
-                continue
-            quad_addr = Address(stack)
-            quad_addr.push_level(q)
-
-            quad_crosses_str_ids = [str_id for str_id, c in crosses.items()
-                                    if quad_addr.partial_compare(c.get_address())]
-
-            if len(quad_crosses_str_ids) > 0:
-                shortest_path = None
-                for distant_cross in quad_crosses_str_ids:
-                    path = shortest_paths[cross.get_str_id()][distant_cross]
-                    if shortest_path is None or len(path) < len(shortest_path):
+                # Get path from current cross to each station in this quad
+                shortest_path = 0
+                for s in quad_stations:
+                    path = paths[cross['name']]['s' + str(s)]
+                    if shortest_path == 0 or len(path) < len(shortest_path):
                         shortest_path = path
+                # log.debug('Shortest path to %s is %s', current_address, shortest_path)
 
-                direction = connected_crosses_directions[shortest_path[1]]
-                if quad_addr not in directions[direction]:
-                    directions[direction] += [quad_addr]
-                    lengths[direction]['-'.join(str(x) for x in quad_addr)] = len(shortest_path)
+                if shortest_path != 0:
+                    # Add current address to necessary direction
+                    direction = connected_crosses_directions[int(shortest_path[1][1:])]
+                    # log.debug('Direction for address %s: %s', current_address, direction)
 
-    return directions, lengths
+                    if current_address not in directions[direction]:
+                        directions[direction] += [current_address]
+                        lengths[direction]['-'.join(str(x) for x in current_address)] = len(shortest_path)
 
+    log.debug('Directions addresses: %s', directions)
+    log.debug('Directions lengths: %s', lengths)
 
-def process_duplicates(directions, lengths):
-    directions_new = dict()
+    # Now we need to remove duplicates in different directions
+    # TODO: Remove duplicates in different directions somehow
+    directions_noduplicates = dict()
     processed_addresses = []
-
-    for d in ['n', 's', 'w', 'e']:
-        directions_new[d] = []
-
-    for d, addresses in directions.items():
-        other_directions = [x for x in ['n', 's', 'w', 'e'] if x != d]
+    for d in ['n', 's', 'e', 'w']:
+        directions_noduplicates[d] = []
+    for direction, addresses in directions.items():
+        other_directions = [x for x in ['n', 's', 'e', 'w'] if x != direction]
 
         other_directions_addresses = []
         other_directions_address_directions = []
 
-        for other_direction in other_directions:
-            for other_address in directions[other_direction]:
+        for d in other_directions:
+            for other_address in directions[d]:
                 other_directions_addresses += [other_address]
-                other_directions_address_directions += [other_direction]
+                other_directions_address_directions += d
 
         for address in addresses:
-            if address in processed_addresses:
-                continue
+            if address not in processed_addresses:
+                if address in other_directions_addresses:
+                    addresses_to_compare = []
+                    addresses_to_compare += [{'address': address,
+                                              'direction': direction,
+                                              'length': lengths[direction]['-'.join(str(x) for x in address)]}]
+                    for i in range(0, len(other_directions_addresses)):
+                        if other_directions_addresses[i] == address:
+                            addresses_to_compare += [{'address': other_directions_addresses[i],
+                                                      'direction': other_directions_address_directions[i],
+                                                      'length': lengths[other_directions_address_directions[i]]['-'.join(str(x) for x in other_directions_addresses[i])]}]
+                    shortest_addr = 0
+                    for addr in addresses_to_compare:
+                        if shortest_addr == 0 or addr['length'] < shortest_addr['length']:
+                            shortest_addr = addr
+                    directions_noduplicates[shortest_addr['direction']] += [shortest_addr['address']]
+                else:
+                    directions_noduplicates[direction] += [address]
+                processed_addresses += [address]
 
-            if address in other_directions_addresses:
-                addresses_to_compare = []
-                addresses_to_compare += [{'address': address,
-                                          'direction': d,
-                                          'length': lengths[d]['-'.join(str(x) for x in address)]}]
-                for i in range(0, len(other_directions_addresses)):
-                    if other_directions_addresses[i] == address:
-                        addresses_to_compare += [{'address': other_directions_addresses[i],
-                                                  'direction': other_directions_address_directions[i],
-                                                  'length': lengths[other_directions_address_directions[i]][
-                                                      '-'.join(str(x) for x in other_directions_addresses[i])]}]
-                shortest_addr = 0
-                for addr in addresses_to_compare:
-                    if shortest_addr == 0 or addr['length'] < shortest_addr['length']:
-                        shortest_addr = addr
-                directions_new[shortest_addr['direction']] += [shortest_addr['address']]
-            else:
-                directions_new[d] += [address]
+    # Now we need to collapse multiple adjacent quads to one range
+    # Like 0, 1, 2 -> 0..2
 
-            processed_addresses += [address]
-
-    log.debug("Directions before removing duplicates: %s", print_dict(directions))
-    log.debug("Directions after removing duplicates: %s", print_dict(directions_new))
-
-    return directions_new
-
-
-def process_ranges(directions):
-    directions_new = dict()
-
-    for d, addresses in directions.items():
-        if len(addresses) == 0:
+    directions_collapsed = dict()
+    for direction, addresses in directions_noduplicates.items():
+        if len(direction) == 0:
             continue
 
-        directions_new[d] = []
+        directions_collapsed[direction] = []
         addresses_collapsed = []
 
         for address in addresses:
             if address in addresses_collapsed:
                 continue
 
-            collapse = [v for v in addresses if v.get_depth() == address.get_depth() and
+            collapse = [v for v in addresses if len(address) == len(v) and
                         address != v and
-                        address.get_array()[:-1] == v.get_array()[:-1]]
-
-            range_start = address.at(-1)
-            range_end = address.at(-1)
-
+                        address[:-1] == v[:-1]]
+            range_start = address[-1]
+            range_end = address[-1]
             for c in collapse:
-                last = c.at(-1)
+                last = c[-1]
                 if last - range_start == -1:
                     range_start = last
                 if last - range_end == 1:
                     range_end = last
 
             if range_start == range_end:
-                if address not in directions_new[d]:
-                    directions_new[d] += [address]
+                if address not in directions_collapsed[direction]:
+                    directions_collapsed[direction] += [address]
             else:
+                # Add collapsed addresses to collapsed addresses list
                 addresses_collapsed += collapse
 
                 # Encode our range to store it in int
                 # Like result = 10 * (start + 1) + end
-                item = Address(address.get_array()[:-1] + [((range_start + 1) * 10 + range_end)])
-                if item not in directions_new[d]:
-                    directions_new[d] += [item]
+                item = address[:-1] + [((range_start + 1) * 10 + range_end)]
+                if item not in directions_collapsed[direction]:
+                    directions_collapsed[direction] += [item]
 
-    log.debug("Raw directions: %s", print_dict(directions))
-    log.debug("Collapsed directions: %s", print_dict(directions_new))
+    log.debug('Collapsed directions addresses: %s', directions_collapsed)
 
-    return directions_new
+    commands = dict()
+    for direction, addresses in directions_collapsed.items():
+        commands[direction] = []
+        for address in addresses:
+            commands[direction] += [generate_way_command(address)]
 
+    log.info('Done processing cross %s', cross['number'])
 
-def process_cross_direction_addresses(cross, shortest_paths, stations, crosses):
-    log.debug("Processing %s", cross)
-    directions = dict()
-    directions['n'] = []
-    directions['s'] = []
-    directions['w'] = []
-    directions['e'] = []
-
-    lengths = dict()
-    lengths['n'] = dict()
-    lengths['s'] = dict()
-    lengths['w'] = dict()
-    lengths['e'] = dict()
-
-    connected_crosses_directions = dict()
-    if cross.get_n() is not None:
-        connected_crosses_directions[cross.get_n()] = 'n'
-    if cross.get_s() is not None:
-        connected_crosses_directions[cross.get_s()] = 's'
-    if cross.get_w() is not None:
-        connected_crosses_directions[cross.get_w()] = 'w'
-    if cross.get_e() is not None:
-        connected_crosses_directions[cross.get_e()] = 'e'
-
-    directions_new, lengths_new, connected_stations = process_connected_stations(cross, stations)
-    directions.update(directions_new)
-    lengths.update(lengths_new)
-
-    directions_new, lengths_new = process_distant_stations(cross, shortest_paths, stations, connected_stations,
-                                                           connected_crosses_directions)
-    directions.update(directions_new)
-    lengths.update(lengths_new)
-
-    directions_new, lengths_new = process_distant_crosses(cross, shortest_paths, crosses, connected_crosses_directions)
-    directions.update(directions_new)
-    lengths.update(lengths_new)
-
-    directions_new = process_duplicates(directions, lengths)
-    directions.update(directions_new)
-
-    directions_new = process_ranges(directions)
-    directions = directions_new
-
-    return directions
+    return commands
 
 
-def process(stations_data, crosses_data):
+def main(stations_data, crosses_data):
+
+    log.info('Parsing CSV data')
+    log.debug('Creating stations dict')
+
     stations = dict()
+    for line in stations_data.split('\n')[1:]:
+        columns = line.split(',')
+
+        row = dict()
+        row['number'] = int(columns[0])
+        row['title'] = columns[1]
+        row['address'] = []
+
+        for level in columns[2].split('-'):
+            row['address'].append(int(level))
+
+        row['name'] = 's' + str(row['number'])
+
+        stations[row['number']] = row
+
+        log.debug('Parsed station %s', row)
+
+    log.debug('Creating crosses dict')
+
     crosses = dict()
+    for line in crosses_data.split('\n')[1:]:
+        columns = line.split(',')
 
-    log.info("Loading stations from CSV")
-    lines = stations_data.split('\n')[1:]  # Skip header
-    for line in lines:
-        station = Station.load_from_csv(line)
-        stations[station.get_str_id()] = station
-        log.debug("Adding station %s", station)
+        row = dict()
+        row['number'] = int(columns[0])
+        row['address'] = []
 
-    log.info("Loading crosses from CSV")
-    lines = crosses_data.split('\n')[1:]  # Skip header
-    for line in lines:
-        cross = Cross.load_from_csv(line)
-        crosses[cross.get_str_id()] = cross
-        log.debug("Adding cross %s", cross)
+        for level in columns[1].split('-'):
+            row['address'].append(int(level))
 
-    log.info("Building graph")
+        row['x'] = int(columns[6])
+        row['z'] = int(columns[7])
+        row['name'] = 'c' + str(row['number'])
+        row['connections'] = dict()
+
+        for direction in ['n', 's', 'w', 'e']:
+            column = {'n': 2, 's': 3, 'w': 4, 'e': 5}[direction]
+            if columns[column] == '-':
+                continue
+            row['connections'][direction] = dict()
+            row['connections'][direction]['type'] = columns[column][0]
+            row['connections'][direction]['number'] = int(columns[column][1:])
+
+        crosses[row['number']] = row
+
+        log.debug('Parsed cross %s', row)
+
+    log.info('Building graph')
+    log.debug('Creating nodes')
     graph = nx.Graph()
-    log.debug("Creating station nodes")
-    for str_id, station in stations.items():
-        graph.add_node(str_id, value=station)
-    log.debug("Creating cross nodes")
-    for str_id, cross in crosses.items():
-        graph.add_node(str_id, value=cross)
+    for number, station in stations.items():
+        graph.add_node(station['name'], type='s')
+        log.debug('Added station %s', station['name'])
 
-    log.debug("Creating edges")
-    for str_id, cross in crosses.items():
-        if cross.get_n() is not None:
-            graph.add_edge(str_id, cross.get_n())
-        if cross.get_s() is not None:
-            graph.add_edge(str_id, cross.get_s())
-        if cross.get_w() is not None:
-            graph.add_edge(str_id, cross.get_w())
-        if cross.get_e() is not None:
-            graph.add_edge(str_id, cross.get_e())
+    for number, cross in crosses.items():
+        graph.add_node(cross['name'], type='c')
+        log.debug('Added cross %s', cross['name'])
 
-    log.debug("Finding shortest paths")
-    shortest_paths = nx.shortest_path(graph)
+    log.debug('Creating edges')
+    for number, cross in crosses.items():
+        for direction in ['n', 's', 'w', 'e']:
+            if direction in cross['connections'].keys():
+                direction = cross['connections'][direction]
+                if direction['type'] == 'c':
+                    other = crosses[direction['number']]['name']
+                else:
+                    other = stations[direction['number']]['name']
+                graph.add_edge(cross['name'], other)
+                log.debug('Created edge between %s and %s', cross['name'], other)
 
-    log.info("Processing crosses")
-    crosses_directions = dict()
-    for str_id, cross in crosses.items():
-        crosses_directions[str_id] = process_cross_direction_addresses(cross, shortest_paths, stations, crosses)
-    log.info("Done processing crosses directions")
+    log.debug('Building shortest paths')
+    paths = nx.shortest_path(graph)
 
-    log.info("Generating commands")
+    log.info('Processing crosses')
     crosses_commands = dict()
-    for str_id, cross in crosses.items():
-        crosses_commands[str_id] = generate_commands(cross, crosses_directions[str_id])
+    for number, cross in crosses.items():
+        crosses_commands[number] = process_cross(cross, paths, crosses, stations)
+    log.info('Done processing crosses')
 
-    log.debug("Crosses commands: %s", crosses_commands)
+    print('Done processing')
 
-    return crosses_commands
+    while True:
+        user_input = input('Input cross number (or \'q\' to quit): ')
+        if user_input == 'q':
+            log.info('User exit')
+            break
+        cross_number = int(user_input)
+        while True:
+            user_input = input('Input direction (\'n\', \'s\', \'e\' or \'w\' or \'q\' to proceed to next cross): ')
+            if user_input == 'q':
+                break
+            cross_direction = user_input
+            x, y, z = input('Input x y z: ').split(' ')
+            r = 2
+            rx, ry, rz = input('Input RAIL x y z: ').split(' ')
+            rd = input('Input rail direction: ')
+            commands = crosses_commands[cross_number][cross_direction]
+            for command in commands:
+                command = command.replace('{x}', str(x))
+                command = command.replace('{y}', str(y))
+                command = command.replace('{z}', str(z))
+
+                command = command.replace('{r}', str(r))
+
+                command = command.replace('{rx}', str(rx))
+                command = command.replace('{ry}', str(ry))
+                command = command.replace('{rz}', str(rz))
+
+                command = command.replace('{rd}', str(rd))
+
+                print(command)
+
+    print('Closing')
 
 log.basicConfig(filename='path_builder.debug.log', level=log.DEBUG, filemode='w')
 log.info('Started')
@@ -377,6 +372,6 @@ file.close()
 
 log.info('Starting processing')
 
-process(stationsData, crossesData)
+main(stationsData, crossesData)
 
 log.info('Done')
