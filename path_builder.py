@@ -147,7 +147,6 @@ def process_cross(cross, paths, crosses, stations):
     log.debug('Directions lengths: %s', lengths)
 
     # Now we need to remove duplicates in different directions
-    # TODO: Remove duplicates in different directions somehow
     directions_noduplicates = dict()
     processed_addresses = []
     for d in ['n', 's', 'e', 'w']:
