@@ -8,6 +8,18 @@ import logging as log
 import networkx as nx
 import sys
 
+from command_generator import generate_way_command
+
+
+def encode_range(start, end):
+    # Encode our range to store it in int
+    # Like result = 10 * (start + 1) + end
+    return (start + 1) * 10 + end
+
+
+def decode_range(r):
+    return r / 10 - 1, r % 10
+
 
 def process_connected_stations(cross, stations, directions, lengths):
     for direction, value in cross['connections'].items():
@@ -17,43 +29,6 @@ def process_connected_stations(cross, stations, directions, lengths):
             lengths[direction]['-'.join(str(x) for x in address)] = 1
 
     return directions, lengths
-
-
-def generate_way_command(address):
-    template = '/execute @e[x={x},y={y},z={z},r={r},{scores}] ~ ~ ~ setblock {rx} {ry} {rz} minecraft:rail {rd}'
-
-    scores = []
-    score_prefix = 'score_'
-    score_name = 'metro_st_l_{l}'
-    score_min_suffix = '_min'
-
-    for i in range(0, len(address)):
-        l = address[i]
-
-        if l < 10:
-            score = score_prefix + score_name + score_min_suffix
-            score = score.replace('{l}', str(i))
-            score += '=' + str(l)
-            scores += [score]
-
-            score = score_prefix + score_name
-            score = score.replace('{l}', str(i))
-            score += '=' + str(l)
-            scores += [score]
-        else:
-            div, mod = divmod(l, 10)
-            score = score_prefix + score_name + score_min_suffix
-            score = score.replace('{l}', str(i))
-            score += '=' + str(div - 1)
-            scores += [score]
-
-            score = score_prefix + score_name
-            score = score.replace('{l}', str(i))
-            score += '=' + str(mod)
-            scores += [score]
-
-    template = template.replace('{scores}', ','.join(scores))
-    return template
 
 
 def process_cross(cross, paths, crosses, stations):
@@ -214,12 +189,8 @@ def process_cross(cross, paths, crosses, stations):
                 if address not in directions_collapsed[direction]:
                     directions_collapsed[direction] += [address]
             else:
-                # Add collapsed addresses to collapsed addresses list
                 addresses_collapsed += collapse
-
-                # Encode our range to store it in int
-                # Like result = 10 * (start + 1) + end
-                item = address[:-1] + [((range_start + 1) * 10 + range_end)]
+                item = address[:-1] + [encode_range(range_start, range_end)]
                 if item not in directions_collapsed[direction]:
                     directions_collapsed[direction] += [item]
 
@@ -229,7 +200,7 @@ def process_cross(cross, paths, crosses, stations):
     for direction, addresses in directions_collapsed.items():
         commands[direction] = []
         for address in addresses:
-            commands[direction] += [generate_way_command(address)]
+            commands[direction] += [generate_way_command(cross, address, log, direction)]
 
     log.info('Done processing cross %s', cross['number'])
 
@@ -237,6 +208,8 @@ def process_cross(cross, paths, crosses, stations):
 
 
 def main(stations_data, crosses_data):
+
+    print("Processing...")
 
     log.info('Parsing CSV data')
     log.debug('Creating stations dict')
@@ -334,24 +307,8 @@ def main(stations_data, crosses_data):
             if user_input == 'q':
                 break
             cross_direction = user_input
-            x, y, z = input('Input x y z: ').split(' ')
-            r = 2
-            rx, ry, rz = input('Input RAIL x y z: ').split(' ')
-            rd = input('Input rail direction: ')
             commands = crosses_commands[cross_number][cross_direction]
             for command in commands:
-                command = command.replace('{x}', str(x))
-                command = command.replace('{y}', str(y))
-                command = command.replace('{z}', str(z))
-
-                command = command.replace('{r}', str(r))
-
-                command = command.replace('{rx}', str(rx))
-                command = command.replace('{ry}', str(ry))
-                command = command.replace('{rz}', str(rz))
-
-                command = command.replace('{rd}', str(rd))
-
                 print(command)
 
     print('Closing')
