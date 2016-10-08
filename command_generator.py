@@ -1,5 +1,6 @@
 from path_builder import decode_range
 
+
 def generate_way_command(cross, address, log, direction):
     directions_data = {
         'n': {
