@@ -6,6 +6,7 @@ import core.csv_converter as csv_converter
 import core.graph_builder as graph_builder
 import core.connected_stations_processor as connected_stations_processor
 import core.distant_stations_processor as distant_stations_processor
+import core.directions_array_merger as directions_array_merger
 
 
 def initialize_logger():
@@ -95,3 +96,11 @@ distant_stations_file.write(json.dumps(directions_distant, indent='    ', ensure
 distant_stations_file.close()
 
 log.info('Saved crosses\' distant stations JSON to temp/distant_stations.json')
+
+directions = directions_array_merger.merge(directions_connected, directions_distant)
+
+directions_file = open('temp/directions.json', 'w')
+directions_file.write(json.dumps(directions, indent='    ', ensure_ascii=False, sort_keys=True))
+directions_file.close()
+
+log.info('Saved crosses\' directions JSON to temp/directions.json')
