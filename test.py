@@ -8,6 +8,7 @@ import core.connected_stations_processor as connected_stations_processor
 import core.distant_stations_processor as distant_stations_processor
 import core.directions_array_merger as directions_array_merger
 import core.station_to_address_converter as station_to_address_converter
+import core.one_direction_address_merger as one_direction_address_merger
 
 
 def initialize_logger():
@@ -99,3 +100,9 @@ address_dirs = station_to_address_converter.convert_stations_to_addresses(direct
 log.info('Converted stations directions to address directions')
 
 save_json('directions_addresses', address_dirs, 'crosses\' addresses directions')
+
+merged_one = one_direction_address_merger.merge_addresses(address_dirs, paths)
+
+log.info('Merged one direction addresses')
+
+save_json('one_direction_merged', merged_one, 'one direction merged addresses')
