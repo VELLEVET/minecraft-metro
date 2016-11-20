@@ -7,6 +7,7 @@ import core.graph_builder as graph_builder
 import core.connected_stations_processor as connected_stations_processor
 import core.distant_stations_processor as distant_stations_processor
 import core.directions_array_merger as directions_array_merger
+import core.station_to_address_converter as station_to_address_converter
 
 
 def initialize_logger():
@@ -104,3 +105,13 @@ directions_file.write(json.dumps(directions, indent='    ', ensure_ascii=False, 
 directions_file.close()
 
 log.info('Saved crosses\' directions JSON to temp/directions.json')
+
+address_dirs = station_to_address_converter.convert_stations_to_addresses(directions, stations_and_crosses_dict)
+
+log.info('Converted stations directions to address directions')
+
+address_dirs_file = open('temp/addr_dirs.json', 'w')
+address_dirs_file.write(json.dumps(address_dirs, indent='    ', ensure_ascii=False, sort_keys=True))
+address_dirs_file.close()
+
+log.info('Saved address directions JSON to temp/addr_dirs.json')
