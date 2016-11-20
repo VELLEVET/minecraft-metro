@@ -36,6 +36,14 @@ def initialize_logger():
 
     return logger
 
+
+def save_json(filename, data, comment:str):
+    file = open('temp/' + filename + '.json', 'w')
+    file.write(json.dumps(data, indent='    ', ensure_ascii=False, sort_keys=True))
+    file.close()
+
+    log.info('Saved ' + comment.lower() + ' as JSON to temp/' + filename + '.json')
+
 log = initialize_logger()
 
 
@@ -58,11 +66,7 @@ stations_and_crosses_dict = csv_converter.convert(stations_csv, crosses_csv)
 
 log.info('Converted CSV to dict')
 
-converted_file = open('temp/converted.json', 'w')
-converted_file.write(json.dumps(stations_and_crosses_dict, indent='    ', ensure_ascii=False, sort_keys=True))
-converted_file.close()
-
-log.info('Saved dict as JSON to temp/converted.json')
+save_json('converted', stations_and_crosses_dict, 'dict')
 
 graph = graph_builder.build_graph(stations_and_crosses_dict)
 
@@ -72,46 +76,26 @@ paths = graph_builder.find_paths(graph)
 
 log.info('Found shortest paths')
 
-shortest_paths_file = open('temp/shortest_paths.json', 'w')
-shortest_paths_file.write(json.dumps(paths, indent='    ', ensure_ascii=False, sort_keys=True))
-shortest_paths_file.close()
-
-log.info('Saved shortest paths as JSON to temp/shortest_paths.json')
+save_json('shortest_paths', paths, 'shortest paths')
 
 directions_connected = connected_stations_processor.process(stations_and_crosses_dict)
 
 log.info('Processed crosses\' directly connected stations')
 
-connected_stations_file = open('temp/connected_stations.json', 'w')
-connected_stations_file.write(json.dumps(directions_connected, indent='    ', ensure_ascii=False, sort_keys=True))
-connected_stations_file.close()
-
-log.info('Saved crosses\' directly connected stations JSON to temp/connected_stations.json')
+save_json('connected_stations', directions_connected, 'crosses\' directly connected stations')
 
 directions_distant = distant_stations_processor.process(stations_and_crosses_dict, paths)
 
 log.info('Processed crosses\' distant connected stations')
 
-distant_stations_file = open('temp/distant_stations.json', 'w')
-distant_stations_file.write(json.dumps(directions_distant, indent='    ', ensure_ascii=False, sort_keys=True))
-distant_stations_file.close()
+save_json('distant_stations', directions_distant, 'crosses\' distant stations')
 
-log.info('Saved crosses\' distant stations JSON to temp/distant_stations.json')
+directions_stations = directions_array_merger.merge(directions_connected, directions_distant)
 
-directions = directions_array_merger.merge(directions_connected, directions_distant)
+save_json('directions_stations', directions_stations, 'crosses\' stations directions')
 
-directions_file = open('temp/directions.json', 'w')
-directions_file.write(json.dumps(directions, indent='    ', ensure_ascii=False, sort_keys=True))
-directions_file.close()
-
-log.info('Saved crosses\' directions JSON to temp/directions.json')
-
-address_dirs = station_to_address_converter.convert_stations_to_addresses(directions, stations_and_crosses_dict)
+address_dirs = station_to_address_converter.convert_stations_to_addresses(directions_stations, stations_and_crosses_dict)
 
 log.info('Converted stations directions to address directions')
 
-address_dirs_file = open('temp/addr_dirs.json', 'w')
-address_dirs_file.write(json.dumps(address_dirs, indent='    ', ensure_ascii=False, sort_keys=True))
-address_dirs_file.close()
-
-log.info('Saved address directions JSON to temp/addr_dirs.json')
+save_json('directions_addresses', address_dirs, 'crosses\' addresses directions')
