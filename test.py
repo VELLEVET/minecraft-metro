@@ -5,6 +5,7 @@ import json
 import core.csv_converter as csv_converter
 import core.graph_builder as graph_builder
 import core.connected_stations_processor as connected_stations_processor
+import core.distant_stations_processor as distant_stations_processor
 
 
 def initialize_logger():
@@ -75,13 +76,22 @@ shortest_paths_file.close()
 
 log.info('Saved shortest paths as JSON to temp/shortest_paths.json')
 
-directions = connected_stations_processor.process(stations_and_crosses_dict)
+directions_connected = connected_stations_processor.process(stations_and_crosses_dict)
 
 log.info('Processed crosses\' directly connected stations')
 
 connected_stations_file = open('temp/connected_stations.json', 'w')
-connected_stations_file.write(json.dumps(directions, indent='    ', ensure_ascii=False, sort_keys=True))
+connected_stations_file.write(json.dumps(directions_connected, indent='    ', ensure_ascii=False, sort_keys=True))
 connected_stations_file.close()
 
 log.info('Saved crosses\' directly connected stations JSON to temp/connected_stations.json')
 
+directions_distant = distant_stations_processor.process(stations_and_crosses_dict, paths)
+
+log.info('Processed crosses\' distant connected stations')
+
+distant_stations_file = open('temp/distant_stations.json', 'w')
+distant_stations_file.write(json.dumps(directions_distant, indent='    ', ensure_ascii=False, sort_keys=True))
+distant_stations_file.close()
+
+log.info('Saved crosses\' distant stations JSON to temp/distant_stations.json')
