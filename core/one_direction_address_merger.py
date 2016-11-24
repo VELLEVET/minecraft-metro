@@ -10,10 +10,13 @@ import core.address_util as address_util
 
 def merge_addresses(address_dirs, paths):
     """
+    Merges similar addresses in single cross' direction
 
-    :param address_dirs:
-    :param paths:
-    :return:
+    Selects shortest path to specified address
+
+    :param address_dirs: Addresses directions
+    :param paths: Shortest paths
+    :return: Addresses directions with merged addresses in single cross' direction
     """
 
     result = dict()
