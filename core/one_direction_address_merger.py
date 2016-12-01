@@ -29,7 +29,10 @@ def merge_addresses(address_dirs: dict, paths: dict):
                 dist = len(paths[cid][data['id']])
                 addr_encoded = data['address']
 
-                if addr_encoded not in result[cid][d].keys() or result[cid][d][addr_encoded] < dist:
-                    result[cid][d][addr_encoded] = dist
+                if addr_encoded not in result[cid][d].keys() or result[cid][d][addr_encoded]['distance'] < dist:
+                    result[cid][d][addr_encoded] = {
+                        'distance': dist,
+                        'id': data['id']
+                    }
 
     return result

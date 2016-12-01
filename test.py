@@ -9,6 +9,7 @@ import core.distant_stations_processor as distant_stations_processor
 import core.directions_array_merger as directions_array_merger
 import core.station_to_address_converter as station_to_address_converter
 import core.one_direction_address_merger as one_direction_address_merger
+import core.multiple_directions_address_merger as multiple_directions_address_merger
 
 
 def initialize_logger():
@@ -106,3 +107,9 @@ merged_one = one_direction_address_merger.merge_addresses(address_dirs, paths)
 log.info('Merged one direction addresses')
 
 save_json('one_direction_merged', merged_one, 'one direction merged addresses')
+
+merged_multiple = multiple_directions_address_merger.merge_addresses(merged_one, stations_and_crosses_dict)
+
+log.info('Merged multiple directions addresses')
+
+save_json('multiple_directions_merged', merged_multiple, 'multiple directions merged addresses')
