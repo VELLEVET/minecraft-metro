@@ -14,12 +14,12 @@ def get_common_address_part(base, other):
     :return: Common address part
     """
 
-    result = list()
+    result = str()
     for i in range(0, min(len(base), len(other))):
         b = base[i]
         o = other[i]
 
-        result += [o]
+        result += str(o)
 
         if b != o:
             break

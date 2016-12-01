@@ -5,9 +5,6 @@ Merges similar addresses in similar cross' direction
 """
 
 
-import core.address_util as address_util
-
-
 def merge_addresses(address_dirs, paths):
     """
     Merges similar addresses in single cross' direction
@@ -29,7 +26,7 @@ def merge_addresses(address_dirs, paths):
 
             for data in addrs:
                 dist = len(paths[cid][data['id']])
-                addr_encoded = address_util.addr_to_str(data['address'])
+                addr_encoded = data['address']
 
                 if addr_encoded not in result[cid][d].keys() or result[cid][d][addr_encoded] < dist:
                     result[cid][d][addr_encoded] = dist

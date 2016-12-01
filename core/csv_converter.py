@@ -20,10 +20,10 @@ def convert(stations: str, crosses: str):
         row = dict()
         row['number'] = cols[0]
         row['label'] = cols[1]
-        row['address'] = list()
+        row['address'] = str()
 
         for l in cols[2].split('-'):
-            row['address'].append(int(l))
+            row['address'] += str(l)
 
         row['id'] = 's' + str(row['number'])
         row['cross_id'] = 'c' + cols[3]
@@ -36,10 +36,10 @@ def convert(stations: str, crosses: str):
 
         row = dict()
         row['number'] = cols[0]
-        row['address'] = list()
+        row['address'] = str()
 
         for l in cols[1].split('-'):
-            row['address'].append(int(l))
+            row['address'] += str(l)
 
         row['id'] = 'c' + str(row['number'])
 
