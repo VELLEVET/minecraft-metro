@@ -5,12 +5,13 @@ Merges similar addresses in similar cross' direction
 """
 
 
-def merge_addresses(address_dirs, paths):
+def merge_addresses(address_dirs: dict, paths: dict):
     """
     Merges similar addresses in single cross' direction
 
     Selects shortest path to specified address
 
+    :rtype: dict
     :param address_dirs: Addresses directions
     :param paths: Shortest paths
     :return: Addresses directions with merged addresses in single cross' direction

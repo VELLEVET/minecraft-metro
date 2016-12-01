@@ -9,6 +9,7 @@ def convert(stations: str, crosses: str):
     """
     Convert given CSV strings to stations and crosses dict
 
+    :rtype: dict
     :param stations: Stations CSV
     :param crosses: Crosses CSV
     :return: Stations and crosses dict

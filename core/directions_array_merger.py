@@ -5,10 +5,11 @@ Merges directions array with specific format
 """
 
 
-def merge(a, b):
+def merge(a: dict, b: dict):
     """
     Merge two directions dicts
 
+    :rtype: dict
     :param a: Directions dict
     :param b: Other directions dict
     :return: Merged directions dict

@@ -5,10 +5,11 @@ Generates list of directions with cross' distant connected stations
 """
 
 
-def process(stations_and_crosses, paths):
+def process(stations_and_crosses: dict, paths: dict):
     """
     Process crosses' distant connected stations
 
+    :rtype: dict
     :param stations_and_crosses: Stations and crosses dict
     :param paths: Shortest paths dict
     :return: Crosses' directions dict containing distant connected stations

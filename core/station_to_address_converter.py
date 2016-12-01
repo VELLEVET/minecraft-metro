@@ -9,6 +9,7 @@ def get_common_address_part(base, other):
     """
     Returns common address part including first different level
 
+    :rtype: str
     :param base: Base address
     :param other: Other address
     :return: Common address part
@@ -27,9 +28,10 @@ def get_common_address_part(base, other):
     return result
 
 
-def convert_stations_to_addresses(directions, stations_and_crosses):
+def convert_stations_to_addresses(directions: dict, stations_and_crosses: dict):
     """
 
+    :rtype: dict
     :param directions:
     :param stations_and_crosses:
     :return:

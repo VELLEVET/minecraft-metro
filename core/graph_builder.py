@@ -12,6 +12,7 @@ import matplotlib.pyplot as plot
 def build_graph(stations_and_crosses: dict):
     """
     Build stations and crosses graph
+    :rtype: nx.Graph
     :param stations_and_crosses: Stations and crosses dict
     :return: Resulting graph
     """
@@ -31,10 +32,11 @@ def build_graph(stations_and_crosses: dict):
     return graph
 
 
-def draw(stations_and_crosses:dict, graph: nx.Graph):
+def draw(stations_and_crosses: dict, graph: nx.Graph):
     """
     Draw and show graph
 
+    :rtype: None
     :param stations_and_crosses: Stations and crosses dict
     :param graph: Graph
     """
@@ -77,6 +79,7 @@ def find_paths(graph: nx.Graph):
     """
     Finds shortest paths between all nodes in given graph
 
+    :rtype: dict
     :param graph: Graph
     :return: Shortest paths
     """
