@@ -10,6 +10,7 @@ import core.directions_array_merger as directions_array_merger
 import core.station_to_address_converter as station_to_address_converter
 import core.one_direction_address_merger as one_direction_address_merger
 import core.multiple_directions_address_merger as multiple_directions_address_merger
+import core.address_dict_converter as address_dict_converter
 
 
 def initialize_logger():
@@ -113,3 +114,9 @@ merged_multiple = multiple_directions_address_merger.merge_addresses(merged_one,
 log.info('Merged multiple directions addresses')
 
 save_json('multiple_directions_merged', merged_multiple, 'multiple directions merged addresses')
+
+converted = address_dict_converter.convert(merged_multiple)
+
+log.info('Converted address dict')
+
+save_json('converted_addresses', converted, 'converted addresses')
