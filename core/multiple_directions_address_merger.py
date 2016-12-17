@@ -26,7 +26,7 @@ def merge_addresses(address_dirs: dict, stations_and_crosses: dict):
                 if addr in result[cid]:
                     if result[cid][addr]['length'] == data['distance']:
                         # Calculate Manhattan distance
-                        do = result[cid][addr]['direction']
+                        """do = result[cid][addr]['direction']
                         so = stations_and_crosses['stations'][data['id']]
                         co = stations_and_crosses['crosses'][so['cross_id']]
 
@@ -46,7 +46,7 @@ def merge_addresses(address_dirs: dict, stations_and_crosses: dict):
                                 'mh_dist': dist
                             }
 
-                        continue
+                        continue"""
                     elif result[cid][addr]['length'] < data['distance']:
                         continue
 
