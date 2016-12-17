@@ -34,3 +34,13 @@ def str_to_addr(addr: str):
         result += [int(l)]
 
     return result
+
+
+def addr_last_level(addr: str or list):
+    """
+    Returns address last level
+    :rtype: int
+    :param addr: Address (list or str)
+    :return: Last level
+    """
+    return int(addr[-1])
