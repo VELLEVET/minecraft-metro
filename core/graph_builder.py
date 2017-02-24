@@ -84,4 +84,4 @@ def find_paths(graph: nx.Graph):
     :return: Shortest paths
     """
 
-    return nx.shortest_path(graph)
+    return nx.all_pairs_shortest_path(graph)
