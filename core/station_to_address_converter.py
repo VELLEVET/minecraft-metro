@@ -47,13 +47,22 @@ def convert_stations_to_addresses(directions: dict, stations_and_crosses: dict):
         for d, stations in dirs.items():
             result[cid][d] = list()
 
-            for s in stations:
-                other_addr = stations_and_crosses['stations'][s]['address']
+            if type(stations) is str:
+                other_addr = stations_and_crosses['stations'][stations]['address']
                 common_addr = get_common_address_part(base_addr, other_addr)
 
                 result[cid][d] += [{
-                    'id': s,
+                    'id': stations,
                     'address': common_addr
                 }]
+            else:
+                for s in stations:
+                    other_addr = stations_and_crosses['stations'][s]['address']
+                    common_addr = get_common_address_part(base_addr, other_addr)
+
+                    result[cid][d] += [{
+                        'id': s,
+                        'address': common_addr
+                    }]
 
     return result

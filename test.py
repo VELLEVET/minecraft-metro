@@ -6,7 +6,7 @@ import core.csv_converter as csv_converter
 import core.graph_builder as graph_builder
 import core.connected_stations_processor as connected_stations_processor
 import core.distant_stations_processor as distant_stations_processor
-import core.directions_array_merger as directions_array_merger
+import core.address_array_merger as address_array_merger
 import core.station_to_address_converter as station_to_address_converter
 import core.one_direction_address_merger as one_direction_address_merger
 import core.multiple_directions_address_merger as multiple_directions_address_merger
@@ -81,53 +81,46 @@ log.info('Built graph')
 paths = graph_builder.find_paths(graph)
 
 log.info('Found shortest paths')
-
 save_json('shortest_paths', paths, 'shortest paths')
 
 directions_connected = connected_stations_processor.process(stations_and_crosses_dict)
 
 log.info('Processed crosses\' directly connected stations')
-
 save_json('connected_stations', directions_connected, 'crosses\' directly connected stations')
 
-directions_distant = distant_stations_processor.process(stations_and_crosses_dict, paths)
+addresses_connected = station_to_address_converter.convert_stations_to_addresses(directions_connected, stations_and_crosses_dict)
 
-log.info('Processed crosses\' distant connected stations')
+log.info('Processed crosses\' directly connected stations addresses')
+save_json('connected_addresses', addresses_connected, 'crosses\' directly connected stations addresses')
 
-save_json('distant_stations', directions_distant, 'crosses\' distant stations')
+addresses_distant = distant_stations_processor.process(stations_and_crosses_dict, paths)
 
-directions_stations = directions_array_merger.merge(directions_connected, directions_distant)
+log.info('Processed crosses\' distant stations addresses')
+save_json('distant_addresses', addresses_distant, 'crosses\' distant stations addresses')
 
-save_json('directions_stations', directions_stations, 'crosses\' stations directions')
+addresses = address_array_merger.merge(addresses_connected, addresses_distant)
 
-address_dirs = station_to_address_converter.convert_stations_to_addresses(directions_stations, stations_and_crosses_dict)
+log.info('Merged distant and connected address arrays')
+save_json('merged_addresses', addresses, 'merged crosses\' directions addresses')
 
-log.info('Converted stations directions to address directions')
-
-save_json('directions_addresses', address_dirs, 'crosses\' addresses directions')
-
-merged_one = one_direction_address_merger.merge_addresses(address_dirs, paths)
+merged_one = one_direction_address_merger.merge_addresses(addresses, paths)
 
 log.info('Merged one direction addresses')
-
 save_json('one_direction_merged', merged_one, 'one direction merged addresses')
 
 merged_multiple = multiple_directions_address_merger.merge_addresses(merged_one, stations_and_crosses_dict)
 
 log.info('Merged multiple directions addresses')
-
 save_json('multiple_directions_merged', merged_multiple, 'multiple directions merged addresses')
 
 converted = address_dict_converter.convert(merged_multiple)
 
 log.info('Converted address dict')
-
 save_json('converted_addresses', converted, 'converted addresses')
 
 ranges_build = address_range_builder.build(converted)
 
 log.info('Built address ranges')
-
 save_json('ranges_built', ranges_build, 'ranges built')
 
 # Let's run some tests
@@ -165,6 +158,7 @@ for s1id in stations_and_crosses_dict['stations']:
             if not dir:
                 log.warning('Did not find path from ' + s1id + ' to ' + s2id)
                 done = True
+                continue
 
             next = stations_and_crosses_dict['crosses'][current]['connections'][dir]
             log.info('Next is ' + next['id'])
